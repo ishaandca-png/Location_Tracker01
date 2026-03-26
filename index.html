@@ -36,7 +36,42 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
+<script>
+  // 2. PASTE YOUR CONFIG HERE
+  const firebaseConfig = {
+  apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
+  authDomain: "staff-tracker-20023.firebaseapp.com",
+  databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
+  projectId: "staff-tracker-20023",
+  storageBucket: "staff-tracker-20023.firebasestorage.app",
+  messagingSenderId: "661387365775",
+  appId: "1:661387365775:web:6a0a36c68a18791e9dcffa",
+  measurementId: "G-LC55HS8XEP"
+};
+
+  // 3. Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // 4. Update your success function to "SEND" data
+  function success(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // This line sends the data to the cloud
+      db.ref('live_location/user_1').set({
+          lat: lat,
+          lng: lng,
+          timestamp: Date.now()
+      });
+
+      // ... keep your existing map marker code here ...
+  }
+
+    
         function startTracking() {
             if (!navigator.geolocation) {
                 alert("Your browser doesn't support geolocation.");
