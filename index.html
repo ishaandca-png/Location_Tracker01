@@ -52,7 +52,27 @@
             });
         }
 
-        function success(pos) {
+        function success(pos) // Initialize Firebase (Use your actual config here)
+const firebaseConfig = {
+  databaseURL: "https://your-project-id.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function success(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    // SEND TO SUPERVISOR:
+    db.ref('drivers/user_1').set({
+        latitude: lat,
+        longitude: lng,
+        timestamp: Date.now()
+    });
+    
+    // ... existing map code ...
+}
+                        {   
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             const accuracy = pos.coords.accuracy;
