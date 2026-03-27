@@ -1,148 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live Map Tracker</title>
-    <link rel="manifest" href="manifest.json">
+    <title>SENDER - Live Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-    /* Force the map to fill the entire screen */
-    html, body {
-        height: 100%;
-        margin: 0;
-    }
-    #map {
-        height: 100vh; /* 'vh' means 100% of the visible screen height */
-        width: 100%;
-    }
-</style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 80vh; width: 100%; background: #e0e0e0; }
+        .controls { height: 20vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; }
+        button { padding: 15px 30px; font-size: 1.1rem; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; }
+    </style>
 </head>
 <body>
 
     <div id="map"></div>
-    
     <div class="controls">
-        <button id="startBtn">Start Live Tracking</button>
-        <div id="status">Waiting for GPS...</div>
+        <button id="startBtn" onclick="startTracking()">START TRACKING</button>
+        <p id="status">Status: Offline</p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
     <script>
-        let map, marker, circle;
+        // PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = { 
+             apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
+            databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
+            projectId: "staff-tracker-20023",
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let marker;
 
-        // 1. Initialize the map with a placeholder view
-        map = L.map('map').setView([0, 0], 2); 
-
-        // 2. Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-<script>
-  // 2. PASTE YOUR CONFIG HERE
-  const firebaseConfig = {
-  apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
-  authDomain: "staff-tracker-20023.firebaseapp.com",
-  databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
-  projectId: "staff-tracker-20023",
-  storageBucket: "staff-tracker-20023.firebasestorage.app",
-  messagingSenderId: "661387365775",
-  appId: "1:661387365775:web:6a0a36c68a18791e9dcffa",
-  measurementId: "G-LC55HS8XEP"
-};
-
-  // 3. Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // 4. Update your success function to "SEND" data
-  function success(pos) {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      // This line sends the data to the cloud
-      db.ref('live_location/user_1').set({
-          lat: lat,
-          lng: lng,
-          timestamp: Date.now()
-      });
-
-      // ... keep your existing map marker code here ...
-  }
-
-    
         function startTracking() {
-            if (!navigator.geolocation) {
-                alert("Your browser doesn't support geolocation.");
-                return;
-            }
+            document.getElementById('startBtn').style.background = "#dc3545";
+            document.getElementById('startBtn').innerText = "TRACKING ACTIVE";
+            
+            navigator.geolocation.watchPosition((pos) => {
+                const { latitude, longitude } = pos.coords;
+                
+                // Update Local Map
+                if (!marker) {
+                    marker = L.marker([latitude, longitude]).addTo(map);
+                    map.setView([latitude, longitude], 16);
+                } else {
+                    marker.setLatLng([latitude, longitude]);
+                }
 
-            document.getElementById('startBtn').innerText = "Tracking Active...";
-
-            navigator.geolocation.watchPosition(success, error, {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
-            });
+                // SEND TO CLOUD
+                db.ref('live_location/user_1').set({
+                    lat: latitude,
+                    lng: longitude,
+                    timestamp: Date.now()
+                });
+                
+                document.getElementById('status').innerText = "Status: Sending Data...";
+            }, (err) => {
+                alert("GPS Error: " + err.message);
+            }, { enableHighAccuracy: true });
         }
-
-        function success(pos) // Initialize Firebase (Use your actual config here)
-const firebaseConfig = {
-  databaseURL: "https://your-project-id.firebaseio.com"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-function success(pos) {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    // SEND TO SUPERVISOR:
-    db.ref('drivers/user_1').set({
-        latitude: lat,
-        longitude: lng,
-        timestamp: Date.now()
-    });
-    
-    // ... existing map code ...
-}
-                        {   
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const accuracy = pos.coords.accuracy;
-
-            // Update status text
-            document.getElementById('status').innerText = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)} (Accurate to ${Math.round(accuracy)}m)`;
-
-            // If marker doesn't exist, create it. Otherwise, move it.
-            if (!marker) {
-                marker = L.marker([lat, lng]).addTo(map);
-                circle = L.circle([lat, lng], { radius: accuracy }).addTo(map);
-                map.setView([lat, lng], 16); // Zoom in on first find
-            } else {
-                marker.setLatLng([lat, lng]);
-                circle.setLatLng([lat, lng]);
-                circle.setRadius(accuracy);
-                map.panTo([lat, lng]); // Smoothly follow the user
-            }
-        }
-
-        function error(err) {
-            console.warn(`ERROR(${err.code}): ${err.message}`);
-            document.getElementById('status').innerText = "Error: " + err.message;
-        }
-
-        document.getElementById('startBtn').addEventListener('click', startTracking);
-    </script>
-    <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
     </script>
 </body>
 </html>
