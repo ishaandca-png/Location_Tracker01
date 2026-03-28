@@ -38,13 +38,25 @@
         let marker;
 
         function startTracking() {
-            document.getElementById('startBtn').style.background = "#dc3545";
-            document.getElementById('startBtn').innerText = "TRACKING ACTIVE";
-            
-           navigator.geolocation.watchPosition(success, error, }, (err) => {
-    // This will pop up a message telling us exactly why it failed
-    alert("Error Code: " + err.code + " - " + err.message);
-}, { enableHighAccuracy: true });
+    console.log("Button clicked!");
+    alert("Attempting to start GPS..."); // If this doesn't show, the function isn't running.
+
+    if (!navigator.geolocation) {
+        alert("GPS is not supported by this browser.");
+        return;
+    }
+
+    const btn = document.getElementById('startBtn');
+    btn.style.background = "orange";
+    btn.innerText = "CONNECTING...";
+
+    navigator.geolocation.watchPosition((pos) => {
+        alert("Success! Found location."); // If this shows, GPS is working.
+        // ... your Firebase and Map code ...
+    }, (err) => {
+        alert("GPS ERROR: " + err.message); // This tells us if it's a permission issue.
+    }, { enableHighAccuracy: true });
+}
                 
                 // Update Local Map
                 if (!marker) {
