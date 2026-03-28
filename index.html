@@ -41,11 +41,10 @@
             document.getElementById('startBtn').style.background = "#dc3545";
             document.getElementById('startBtn').innerText = "TRACKING ACTIVE";
             
-           navigator.geolocation.watchPosition(success, error, {
-                enableHighAccuracy: true,  // Forces the phone to use GPS satellites
-                maximumAge: 0,             // Do not use a cached/old location
-                timeout: 5000              // If it takes >5 seconds, try again
-            });
+           navigator.geolocation.watchPosition(success, error, }, (err) => {
+    // This will pop up a message telling us exactly why it failed
+    alert("Error Code: " + err.code + " - " + err.message);
+}, { enableHighAccuracy: true });
                 
                 // Update Local Map
                 if (!marker) {
