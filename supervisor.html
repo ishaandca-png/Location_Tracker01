@@ -1,51 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SUPERVISOR - Live View</title>
+    <title>SUPERVISOR - Live Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; }
-        #header { height: 60px; background: #343a40; color: white; display: flex; align-items: center; padding: 0 20px; font-family: sans-serif; }
-        #map { height: calc(100vh - 60px); width: 100%; }
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #222; }
+        #header { background: #333; color: white; padding: 15px; display: flex; justify-content: space-between; }
+        #map { height: calc(100vh - 60px); width: 100%; background: #111; }
+        #status-dot { height: 12px; width: 12px; background: red; border-radius: 50%; display: inline-block; margin-right: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="header"><strong>SUPERVISOR PANEL: User 1</strong></div>
-    <div id="map"></div>
+<div id="header">
+    <span><strong>LIVE:</strong> User 1</span>
+    <span><span id="status-dot"></span> <span id="status-text">Offline</span></span>
+</div>
+<div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
-    <script>
-        // PASTE THE SAME FIREBASE CONFIG HERE
-        const firebaseConfig = { 
-            apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ", 
-            databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
-           projectId: "staff-tracker-20023", 
-        };
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
+        databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
+        projectId: "staff-tracker-20023"
+    };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        let superMarker;
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // LISTEN FOR CLOUD UPDATES
-        db.ref('live_location/user_1').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                if (!superMarker) {
-                    superMarker = L.marker([data.lat, data.lng]).addTo(map);
-                    map.setView([data.lat, data.lng], 16);
-                } else {
-                    superMarker.setLatLng([data.lat, data.lng]);
-                    map.panTo([data.lat, data.lng]);
-                }
+    let superMarker;
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+
+    db.ref('live_location/user_1').on('value', (snapshot) => {
+        const data = snapshot.val();
+        
+        if (data) {
+            const { lat, lng, time } = data;
+            
+            // Check if data is fresh (less than 30 seconds old)
+            const isFresh = (Date.now() - time) < 30000;
+            dot.style.background = isFresh ? "#28a745" : "#ffc107";
+            text.innerText = isFresh ? "Live" : "Connection Lagging...";
+
+            if (!superMarker) {
+                superMarker = L.marker([lat, lng]).addTo(map);
+                map.setView([lat, lng], 16);
+            } else {
+                superMarker.setLatLng([lat, lng]);
+                map.panTo([lat, lng]);
             }
-        });
-    </script>
+        } else {
+            text.innerText = "No data in cloud";
+        }
+    }, (error) => {
+        text.innerText = "Database Error!";
+        console.error(error);
+    });
+</script>
 </body>
 </html>
