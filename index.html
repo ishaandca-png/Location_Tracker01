@@ -69,10 +69,48 @@
     }
 
     function startGPS() {
-        if (!navigator.geolocation) {
-            updateLog("GPS not supported by browser", true);
-            return;
-        }
+    if (!navigator.geolocation) {
+        updateLog("GPS not supported by browser", true);
+        return;
+    }
+
+    const gpsOptions = {
+        enableHighAccuracy: true, 
+        maximumAge: 10000, // Allow using a location found in the last 10 seconds
+        timeout: 15000     // Give the GPS 15 full seconds to wake up (up from 10)
+    };
+
+    navigator.geolocation.watchPosition(
+        (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            updateLog(`Connected! (Accuracy: ${Math.round(accuracy)}m)`);
+
+            // Update Map & Firebase
+            if (!marker) {
+                marker = L.marker([latitude, longitude]).addTo(map);
+                map.setView([latitude, longitude], 17);
+            } else {
+                marker.setLatLng([latitude, longitude]);
+            }
+
+            db.ref('live_location/user_1').set({
+                lat: latitude,
+                lng: longitude,
+                time: Date.now()
+            });
+        },
+        (err) => {
+            if (err.code === 3) {
+                updateLog("Searching for satellites... (Timeout)", false);
+                // AUTO-RETRY: If it times out, wait 2 seconds and try again
+                setTimeout(startGPS, 2000);
+            } else {
+                updateLog("GPS Error: " + err.message, true);
+            }
+        },
+        gpsOptions
+    );
+}
 
         navigator.geolocation.watchPosition(
             (pos) => {
