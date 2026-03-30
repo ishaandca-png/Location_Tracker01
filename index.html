@@ -75,12 +75,11 @@
         return;
     }
 
-    const gpsOptions = {
-        enableHighAccuracy: true, 
-        maximumAge: 10000, // Allow using a location found in the last 10 seconds
-        timeout: 15000     // Give the GPS 15 full seconds to wake up (up from 10)
-    };
-
+    const options = {
+    enableHighAccuracy: false, // Change this to false for a faster "Initial Lock"
+    maximumAge: 30000,         // Accept a location up to 30 seconds old
+    timeout: 20000             // Give it a full 20 seconds
+};
     navigator.geolocation.watchPosition(
         (pos) => {
             const { latitude, longitude, accuracy } = pos.coords;
