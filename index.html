@@ -8,11 +8,14 @@
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f9; }
         #map { height: 60vh; width: 100%; border-bottom: 2px solid #ccc; }
         .ui { padding: 20px; text-align: center; }
+        
         button { 
-            width: 100%; padding: 18px; font-size: 1.2rem; border: none; 
-            border-radius: 12px; background: #007bff; color: white; font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;
-        }
+    width: 100%; padding: 18px; font-size: 1.2rem; border: none; 
+    border-radius: 12px; background: #007bff; color: white; font-weight: bold;
+    cursor: pointer; transition: 0.3s;
+}
+/* This class will be added when tracking is active */
+.active-btn { background: #dc3545 !important; }
         button:active { transform: scale(0.98); }
         #log { margin-top: 15px; font-size: 0.9rem; color: #555; line-height: 1.4; }
         .error { color: #dc3545; font-weight: bold; }
@@ -22,8 +25,8 @@
 
 <div id="map"></div>
 <div class="ui">
-    <button id="mainBtn" onclick="initTracker()">ACTIVATE TRACKER</button>
-    <div id="log">Status: Ready to connect...</div>
+    <button id="mainBtn" onclick="toggleTracking()">START TRACKING</button>
+    <div id="log">Status: Ready</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -68,6 +71,69 @@
         }
     }
 
+    let watchId = null; 
+let wakeLock = null;
+
+// The main Toggle function
+async function toggleTracking() {
+    const btn = document.getElementById('mainBtn');
+    
+    if (watchId === null) {
+        // --- STARTING ---
+        btn.innerText = "STOP TRACKING";
+        btn.classList.add('active-btn');
+        
+        // 1. Request Wake Lock (Prevents phone from sleeping)
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) { console.log("WakeLock error: " + err.message); }
+        }
+
+        // 2. Start the GPS engine
+        startGPS(); 
+        updateLog("Tracking Started...");
+    } else {
+        // --- STOPPING ---
+        btn.innerText = "START TRACKING";
+        btn.classList.remove('active-btn');
+        
+        // 1. Kill the GPS engine
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+
+        // 2. Release Wake Lock
+        if (wakeLock !== null) {
+            wakeLock.release();
+            wakeLock = null;
+        }
+
+        // 3. Update Firebase status
+        db.ref('live_location/' + userId).update({ status: 'offline' });
+        updateLog("Tracking Stopped.");
+    }
+}
+
+// Update your startGPS function to store the watchId
+function startGPS() {
+    watchId = navigator.geolocation.watchPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        
+        // Your Firebase Send Logic
+        db.ref('live_location/' + userId).set({
+            lat: latitude,
+            lng: longitude,
+            time: Date.now(),
+            status: 'online'
+        });
+
+        // Update Map Marker
+        updateMarker(latitude, longitude);
+
+    }, (err) => {
+        updateLog("Error: " + err.message, true);
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
     function startGPS() {
         if (!navigator.geolocation) {
             updateLog("GPS not supported by browser", true);
