@@ -48,98 +48,31 @@
     }
 
     function initTracker() {
-    try {
-        updateLog("Initializing Firebase...");
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        db = firebase.database();
-        
-        btn.innerText = "CONNECTING...";
-        btn.style.background = "#ffc107"; // Yellow for "Connecting"
-
-        // Initialize Map if it doesn't exist
-        if (!map) {
-            map = L.map('map').setView([0, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        }
-
-        // START GPS IMMEDIATELY
-        startGPS();
-    } catch (e) {
-        updateLog("Firebase Init Failed: " + e.message, true);
-    }
-}
-
-function startGPS() {
-    if (!navigator.geolocation) {
-        updateLog("GPS not supported", true);
-        return;
-    }
-
-    // We define the options directly here so they are NEVER "undefined"
-    navigator.geolocation.watchPosition(
-        (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            updateLog(`Live! Accuracy: ${Math.round(accuracy)}m`);
+        try {
+            updateLog("Initializing Firebase...");
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
             
-            btn.innerText = "TRACKING ACTIVE";
-            btn.style.background = "#28a745"; // Green for "Active"
+            btn.innerText = "TRACKING LIVE";
+            btn.style.background = "#28a745";
 
-            if (!marker) {
-                marker = L.marker([latitude, longitude]).addTo(map);
-                map.setView([latitude, longitude], 16);
-            } else {
-                marker.setLatLng([latitude, longitude]);
+            // Initialize Map
+            if (!map) {
+                map = L.map('map').setView([0, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             }
 
-            // Sync to Firebase
-            db.ref('live_location/user_1').set({
-                lat: latitude,
-                lng: longitude,
-                time: Date.now()
-            });
-        },
-        (err) => {
-            if (err.code === 3) {
-                updateLog("Satellite signal weak... retrying", false);
-                setTimeout(startGPS, 3000); // Auto-retry on timeout
-            } else {
-                updateLog("GPS Error: " + err.message, true);
-            }
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } 
-    );
-}
-    navigator.geolocation.watchPosition(
-        (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            updateLog(`Connected! (Accuracy: ${Math.round(accuracy)}m)`);
+            startGPS();
+        } catch (e) {
+            updateLog("Firebase Init Failed: " + e.message, true);
+        }
+    }
 
-            // Update Map & Firebase
-            if (!marker) {
-                marker = L.marker([latitude, longitude]).addTo(map);
-                map.setView([latitude, longitude], 17);
-            } else {
-                marker.setLatLng([latitude, longitude]);
-            }
-
-            db.ref('live_location/user_1').set({
-                lat: latitude,
-                lng: longitude,
-                time: Date.now()
-            });
-        },
-        (err) => {
-            if (err.code === 3) {
-                updateLog("Searching for satellites... (Timeout)", false);
-                // AUTO-RETRY: If it times out, wait 2 seconds and try again
-                setTimeout(startGPS, 2000);
-            } else {
-                updateLog("GPS Error: " + err.message, true);
-            }
-        },
-        gpsOptions
-    );
-}
+    function startGPS() {
+        if (!navigator.geolocation) {
+            updateLog("GPS not supported by browser", true);
+            return;
+        }
 
         navigator.geolocation.watchPosition(
             (pos) => {
