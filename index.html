@@ -1,83 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SENDER - Live Tracker</title>
+    <title>SENDER - Live GPS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 80vh; width: 100%; background: #e0e0e0; }
-        .controls { height: 20vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; }
-        button { padding: 15px 30px; font-size: 1.1rem; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; }
+        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f9; }
+        #map { height: 60vh; width: 100%; border-bottom: 2px solid #ccc; }
+        .ui { padding: 20px; text-align: center; }
+        button { 
+            width: 100%; padding: 18px; font-size: 1.2rem; border: none; 
+            border-radius: 12px; background: #007bff; color: white; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;
+        }
+        button:active { transform: scale(0.98); }
+        #log { margin-top: 15px; font-size: 0.9rem; color: #555; line-height: 1.4; }
+        .error { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
-    <div class="controls">
-        <button id="startBtn" onclick="startTracking()">START TRACKING</button>
-        <p id="status">Status: Offline</p>
-    </div>
+<div id="map"></div>
+<div class="ui">
+    <button id="mainBtn" onclick="initTracker()">ACTIVATE TRACKER</button>
+    <div id="log">Status: Ready to connect...</div>
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
-    <script>
-        // PASTE YOUR FIREBASE CONFIG HERE
-        const firebaseConfig = { 
-             apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
-            databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
-            projectId: "staff-tracker-20023",
-        };
-        
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        let marker;
+<script>
+    // 1. DATABASE CONFIG (Replace with your actual Firebase details)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBEhnGY-1nQ9lM6dcCTdhvZBE5KcrC75iQ",
+        databaseURL: "https://staff-tracker-20023-default-rtdb.firebaseio.com",
+        projectId: "staff-tracker-20023"
+    };
 
-        function startTracking() {
-    console.log("Button clicked!");
-    alert("Attempting to start GPS..."); // If this doesn't show, the function isn't running.
+    let map, marker, db;
+    const logEl = document.getElementById('log');
+    const btn = document.getElementById('mainBtn');
 
-    if (!navigator.geolocation) {
-        alert("GPS is not supported by this browser.");
-        return;
+    function updateLog(msg, isError = false) {
+        logEl.innerHTML = isError ? `<span class="error">❌ ${msg}</span>` : `📡 ${msg}`;
+        console.log(msg);
     }
 
-    const btn = document.getElementById('startBtn');
-    btn.style.background = "orange";
-    btn.innerText = "CONNECTING...";
+    function initTracker() {
+        try {
+            updateLog("Initializing Firebase...");
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            
+            btn.innerText = "TRACKING LIVE";
+            btn.style.background = "#28a745";
 
-    navigator.geolocation.watchPosition((pos) => {
-        alert("Success! Found location."); // If this shows, GPS is working.
-        // ... your Firebase and Map code ...
-    }, (err) => {
-        alert("GPS ERROR: " + err.message); // This tells us if it's a permission issue.
-    }, { enableHighAccuracy: true });
-}
-                
-                // Update Local Map
+            // Initialize Map
+            if (!map) {
+                map = L.map('map').setView([0, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+
+            startGPS();
+        } catch (e) {
+            updateLog("Firebase Init Failed: " + e.message, true);
+        }
+    }
+
+    function startGPS() {
+        if (!navigator.geolocation) {
+            updateLog("GPS not supported by browser", true);
+            return;
+        }
+
+        navigator.geolocation.watchPosition(
+            (pos) => {
+                const { latitude, longitude, accuracy } = pos.coords;
+                updateLog(`Location found (Acc: ${Math.round(accuracy)}m)`);
+
+                // Update Map
                 if (!marker) {
                     marker = L.marker([latitude, longitude]).addTo(map);
-                    map.setView([latitude, longitude], 16);
+                    map.setView([latitude, longitude], 17);
                 } else {
                     marker.setLatLng([latitude, longitude]);
                 }
 
-                // SEND TO CLOUD
+                // Sync to Firebase
                 db.ref('live_location/user_1').set({
                     lat: latitude,
                     lng: longitude,
-                    timestamp: Date.now()
+                    time: Date.now()
+                }).then(() => {
+                    updateLog("Cloud Synced: " + new Date().toLocaleTimeString());
+                }).catch(err => {
+                    updateLog("Database Blocked: " + err.message, true);
                 });
-                
-                document.getElementById('status').innerText = "Status: Sending Data...";
-            }, (err) => {
-                alert("GPS Error: " + err.message);
-            }, { enableHighAccuracy: true });
-        }
-    </script>
+            },
+            (err) => {
+                let msg = "GPS Error: ";
+                if (err.code === 1) msg += "Please enable Location Permissions.";
+                if (err.code === 2) msg += "Satellite signal lost.";
+                if (err.code === 3) msg += "Connection timeout.";
+                updateLog(msg, true);
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+    }
+</script>
 </body>
 </html>
