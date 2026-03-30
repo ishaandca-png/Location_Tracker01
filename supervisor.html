@@ -39,8 +39,27 @@
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
 
-    db.ref('live_location/user_1').on('value', (snapshot) => {
-        const data = snapshot.val();
+      const markers = {}; // An object to hold all active markers
+
+    db.ref('live_location').on('value', (snapshot) => {
+        const allUsers = snapshot.val();
+    
+        for (let id in allUsers) {
+        const data = allUsers[id];
+        
+        // If this marker already exists, just move it
+        if (markers[id]) {
+            markers[id].setLatLng([data.lat, data.lng]);
+        } 
+        // If it's a new device, create a new marker
+        else {
+            markers[id] = L.marker([data.lat, data.lng])
+                .addTo(map)
+                .bindPopup("Device: " + id) // Clicks show the ID
+                .openPopup();
+        }
+    }
+});
         
         if (data) {
             const { lat, lng, time } = data;
