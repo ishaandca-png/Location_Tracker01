@@ -87,19 +87,11 @@
                     marker.setLatLng([latitude, longitude]);
                 }
 
-              // 1. Get the ID from the URL (e.g., ?id=Rider_1)
-const urlParams = new URLSearchParams(window.location.search);
-const userId = urlParams.get('id') || "Guest_" + Math.floor(Math.random() * 1000);
-
-// 2. Update the Firebase send logic inside watchPosition
-db.ref('live_location/' + userId).set({
-    lat: latitude,
-    lng: longitude,
-    time: Date.now(),
-    name: userId // Adding name for the supervisor to see
-});
-
-updateLog(`Tracking as: ${userId}`);
+                // Sync to Firebase
+                db.ref('live_location/user_1').set({
+                    lat: latitude,
+                    lng: longitude,
+                    time: Date.now()
                 }).then(() => {
                     updateLog("Cloud Synced: " + new Date().toLocaleTimeString());
                 }).catch(err => {
